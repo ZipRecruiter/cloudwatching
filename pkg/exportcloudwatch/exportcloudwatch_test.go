@@ -1,4 +1,4 @@
-package main
+package exportcloudwatch
 
 import (
 	"testing"
@@ -10,18 +10,18 @@ import (
 
 type unrollTest struct {
 	name string
-	in   []metricStat
-	out  map[string]metricStat
+	in   []MetricStat
+	out  map[string]MetricStat
 }
 
 func TestUnrollMetrics(t *testing.T) {
 	tests := []unrollTest{{
 		name: "empty",
-		in:   []metricStat{},
-		out:  map[string]metricStat{},
+		in:   []MetricStat{},
+		out:  map[string]MetricStat{},
 	}, {
 		name: "simple",
-		in: []metricStat{
+		in: []MetricStat{
 			{
 				statistic: "Sum",
 				cloudwatchMetric: &cloudwatch.Metric{
@@ -40,7 +40,7 @@ func TestUnrollMetrics(t *testing.T) {
 				},
 			},
 		},
-		out: map[string]metricStat{"i0": {
+		out: map[string]MetricStat{"i0": {
 			statistic: "Sum",
 			cloudwatchMetric: &cloudwatch.Metric{
 				Dimensions: []*cloudwatch.Dimension{
@@ -59,7 +59,7 @@ func TestUnrollMetrics(t *testing.T) {
 		}},
 	}, {
 		name: "complex",
-		in: []metricStat{
+		in: []MetricStat{
 			{
 				statistic: "Maximum",
 				cloudwatchMetric: &cloudwatch.Metric{
@@ -95,7 +95,7 @@ func TestUnrollMetrics(t *testing.T) {
 				},
 			},
 		},
-		out: map[string]metricStat{
+		out: map[string]MetricStat{
 			"i0": {
 				statistic: "Maximum",
 				cloudwatchMetric: &cloudwatch.Metric{

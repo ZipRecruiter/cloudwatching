@@ -1,4 +1,4 @@
-package main
+package exportcloudwatch
 
 import (
 	"regexp"
@@ -12,7 +12,7 @@ import (
 type includeMetricTest struct {
 	name string
 
-	exportConfig
+	ExportConfig
 	cloudwatchMetric *cloudwatch.Metric
 
 	result bool
@@ -23,7 +23,7 @@ func TestIncludeMetric(t *testing.T) {
 		{
 			name:   "Dimensions (missing QueueName)",
 			result: false,
-			exportConfig: exportConfig{
+			ExportConfig: ExportConfig{
 				Dimensions: []string{"QueueName"},
 				Statistics: []string{"Sum"},
 			},
@@ -37,7 +37,7 @@ func TestIncludeMetric(t *testing.T) {
 		{
 			name:   "Dimensions (extra Bonk)",
 			result: false,
-			exportConfig: exportConfig{
+			ExportConfig: ExportConfig{
 				Dimensions: []string{"QueueName"},
 				Statistics: []string{"Sum"},
 			},
@@ -54,7 +54,7 @@ func TestIncludeMetric(t *testing.T) {
 		{
 			name:   "!DimensionsMatch",
 			result: false,
-			exportConfig: exportConfig{
+			ExportConfig: ExportConfig{
 				Dimensions: []string{"QueueName"},
 				Statistics: []string{"Sum"},
 				dimensionsMatch: map[string]*regexp.Regexp{
@@ -71,7 +71,7 @@ func TestIncludeMetric(t *testing.T) {
 		{
 			name:   "!DimensionsNoMatch",
 			result: false,
-			exportConfig: exportConfig{
+			ExportConfig: ExportConfig{
 				Dimensions: []string{"QueueName"},
 				Statistics: []string{"Sum"},
 				dimensionsNoMatch: map[string]*regexp.Regexp{
@@ -89,7 +89,7 @@ func TestIncludeMetric(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.result, includeMetric(test.exportConfig, test.cloudwatchMetric))
+			assert.Equal(t, test.result, includeMetric(test.ExportConfig, test.cloudwatchMetric))
 		})
 	}
 }

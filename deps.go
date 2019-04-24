@@ -29,6 +29,13 @@ func initDependencies(config configuration) (*cloudwatch.CloudWatch, error) {
 		Region: aws.String(config.Region),
 	}))
 
+	// XXX recieve session as argument
+	// awssession.ApplyUserAgent(sess, fmt.Sprintf("ZipRecruiter (monitoring/cloudwatch; %s; security@ziprecruiter.com)", Version))
+
+	// if config.Debug {
+	// 	awssession.ApplyZRLogger(sess, logger)
+	// }
+
 	sess.Handlers.Send.SetBackNamed(request.NamedHandler{
 		Name: "Counters",
 		Fn: func(r *request.Request) {
