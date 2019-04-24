@@ -19,6 +19,8 @@ type validateTest struct {
 func xxxAxeCollectors(c []ExportConfig) {
 	for i := range c {
 		c[i].collectors = nil
+		c[i].DimensionsMatch = nil
+		c[i].DimensionsNoMatch = nil
 	}
 }
 
@@ -33,11 +35,11 @@ func TestValidate(t *testing.T) {
 					Name:       "ApproximateAgeOfOldestMessage",
 					Dimensions: []string{"QueueName", "Alpha"},
 					Statistics: []string{"Maximum"},
-					DimensionsMatch: map[string]string{
-						"QueueName": "^foo",
+					DimensionsMatch: map[string]*regexp.Regexp{
+						"QueueName": regexp.MustCompile("^foo"),
 					},
-					DimensionsNoMatch: map[string]string{
-						"QueueName": "^bar",
+					DimensionsNoMatch: map[string]*regexp.Regexp{
+						"QueueName": regexp.MustCompile("^bar"),
 					},
 				},
 			},
@@ -48,18 +50,6 @@ func TestValidate(t *testing.T) {
 					Name:       "ApproximateAgeOfOldestMessage",
 					Dimensions: []string{"Alpha", "QueueName"},
 					Statistics: []string{"Maximum"},
-					DimensionsMatch: map[string]string{
-						"QueueName": "^foo",
-					},
-					DimensionsNoMatch: map[string]string{
-						"QueueName": "^bar",
-					},
-					dimensionsMatch: map[string]*regexp.Regexp{
-						"QueueName": regexp.MustCompile("^foo"),
-					},
-					dimensionsNoMatch: map[string]*regexp.Regexp{
-						"QueueName": regexp.MustCompile("^bar"),
-					},
 				},
 			},
 		},
@@ -72,8 +62,8 @@ func TestValidate(t *testing.T) {
 					Name:       "ApproximateAgeOfOldestMessage",
 					Statistics: []string{"Maximum"},
 					Dimensions: []string{"QueueName", "Alpha"},
-					DimensionsMatch: map[string]string{
-						"TableName": "^foo",
+					DimensionsMatch: map[string]*regexp.Regexp{
+						"TableName": regexp.MustCompile("^foo"),
 					},
 				},
 			},
@@ -89,8 +79,8 @@ func TestValidate(t *testing.T) {
 					Name:       "ApproximateAgeOfOldestMessage",
 					Statistics: []string{"Maximum"},
 					Dimensions: []string{"QueueName", "Alpha"},
-					DimensionsNoMatch: map[string]string{
-						"TableName": "^foo",
+					DimensionsNoMatch: map[string]*regexp.Regexp{
+						"TableName": regexp.MustCompile("^foo"),
 					},
 				},
 			},

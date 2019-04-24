@@ -14,10 +14,10 @@ func includeMetric(e ExportConfig, m *cloudwatch.Metric) bool {
 	got := make([]string, 0, len(e.Dimensions))
 
 	for _, d := range m.Dimensions {
-		if re := e.dimensionsNoMatch[*d.Name]; re != nil && re.MatchString(*d.Value) {
+		if re := e.DimensionsNoMatch[*d.Name]; re != nil && re.MatchString(*d.Value) {
 			return false
 		}
-		if re := e.dimensionsMatch[*d.Name]; re != nil && !re.MatchString(*d.Value) {
+		if re := e.DimensionsMatch[*d.Name]; re != nil && !re.MatchString(*d.Value) {
 			return false
 		}
 		got = append(got, *d.Name)

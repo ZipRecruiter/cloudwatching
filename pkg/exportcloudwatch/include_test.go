@@ -57,7 +57,7 @@ func TestIncludeMetric(t *testing.T) {
 			ExportConfig: ExportConfig{
 				Dimensions: []string{"QueueName"},
 				Statistics: []string{"Sum"},
-				dimensionsMatch: map[string]*regexp.Regexp{
+				DimensionsMatch: map[string]*regexp.Regexp{
 					"QueueName": regexp.MustCompile("^foo"),
 				},
 			},
@@ -74,7 +74,7 @@ func TestIncludeMetric(t *testing.T) {
 			ExportConfig: ExportConfig{
 				Dimensions: []string{"QueueName"},
 				Statistics: []string{"Sum"},
-				dimensionsNoMatch: map[string]*regexp.Regexp{
+				DimensionsNoMatch: map[string]*regexp.Regexp{
 					"QueueName": regexp.MustCompile("^foo"),
 				},
 			},

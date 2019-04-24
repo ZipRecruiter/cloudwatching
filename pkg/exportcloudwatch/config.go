@@ -17,9 +17,7 @@ type ExportConfig struct {
 
 	Dimensions, Statistics []string
 
-	DimensionsMatch, DimensionsNoMatch map[string]string
-
-	dimensionsMatch, dimensionsNoMatch map[string]*regexp.Regexp
+	DimensionsMatch, DimensionsNoMatch map[string]*regexp.Regexp
 
 	// each collector maps to the statistic in the same location
 	collectors []*prometheus.GaugeVec
@@ -60,10 +58,7 @@ func (e *ExportConfig) Validate() error {
 	// these to cheaply compare to other list at runtime
 	sort.Strings(e.Dimensions)
 
-	e.dimensionsMatch = make(map[string]*regexp.Regexp, len(e.DimensionsMatch))
-	e.dimensionsNoMatch = make(map[string]*regexp.Regexp, len(e.DimensionsNoMatch))
-
-	for k, v := range e.DimensionsMatch {
+	for k := range e.DimensionsMatch {
 		// verify that we are matching against dimensions we are going to be
 		// using
 		var found bool
@@ -76,16 +71,9 @@ func (e *ExportConfig) Validate() error {
 		if !found {
 			return errors.New("DimensionsMatch name not in Dimensions")
 		}
-
-		re, err := regexp.Compile(v)
-		if err != nil {
-			return err
-		}
-
-		e.dimensionsMatch[k] = re
 	}
 
-	for k, v := range e.DimensionsNoMatch {
+	for k := range e.DimensionsNoMatch {
 		// verify that we are matching against dimensions we are going to be
 		// using
 		var found bool
@@ -98,13 +86,6 @@ func (e *ExportConfig) Validate() error {
 		if !found {
 			return errors.New("DimensionsNoMatch name not in Dimensions")
 		}
-
-		re, err := regexp.Compile(v)
-		if err != nil {
-			return err
-		}
-
-		e.dimensionsNoMatch[k] = re
 	}
 
 	e.collectors = make([]*prometheus.GaugeVec, len(e.Statistics))
