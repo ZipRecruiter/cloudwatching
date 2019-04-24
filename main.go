@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -19,6 +20,17 @@ type metricStat struct {
 	cloudwatchMetric *cloudwatch.Metric
 	gauge            prometheus.Gauge
 }
+
+// Version is the GIT_SHA used to build
+var Version string
+
+type sortableDimensions []*cloudwatch.Dimension
+
+func (s sortableDimensions) Len() int { return len(s) }
+
+func (s sortableDimensions) Less(i, j int) bool { return *s[i].Name < *s[j].Name }
+
+func (s sortableDimensions) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 func metricsToRead(c configuration, cw *cloudwatch.CloudWatch) ([]metricStat, error) {
 	var metrics []metricStat
@@ -38,6 +50,8 @@ func metricsToRead(c configuration, cw *cloudwatch.CloudWatch) ([]metricStat, er
 				if !includeMetric(exportConfig, metric) {
 					continue
 				}
+				sort.Sort(sortableDimensions(metric.Dimensions))
+
 				for i, s := range exportConfig.Statistics {
 					values := make([]string, 0, len(metric.Dimensions))
 					for _, v := range metric.Dimensions {
