@@ -57,7 +57,6 @@ func (e exportConfig) String(i int) string {
 	return base
 }
 
-// XXX metrics for AWS API
 func (c *configuration) Validate() error {
 	// using i because we are mutating the values
 	for i := range c.ExportConfigs {
