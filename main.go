@@ -63,7 +63,7 @@ func main() {
 	var listMetricsDuration time.Duration
 
 	start := time.Now()
-	metrics, err = exportcloudwatch.MetricsToRead(c.ExportConfigs, cw)
+	metrics, err = exportcloudwatch.MetricsToRead(c.exportConfigs, cw)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func main() {
 			time.Sleep(duration)
 
 			start := time.Now()
-			metrics, err = exportcloudwatch.MetricsToRead(c.ExportConfigs, cw)
+			metrics, err = exportcloudwatch.MetricsToRead(c.exportConfigs, cw)
 			if err != nil {
 				log.Fatal(err)
 			}
