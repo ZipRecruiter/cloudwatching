@@ -30,15 +30,33 @@ type configuration struct {
 	ExportConfigs []exportConfig
 }
 
+func (e exportConfig) isDynamodDBIndexMetric() bool {
+	if e.Namespace != "AWS/DynamoDB" {
+		return false
+	}
+
+	for _, d := range e.Dimensions {
+		if d == "GlobalSecondaryIndexName" {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (e exportConfig) String(i int) string {
-	base := e.Name + e.Statistics[i]
+	var base string
+	if e.isDynamodDBIndexMetric() {
+		base = e.Name + "Index" + e.Statistics[i]
+	} else {
+		base = e.Name + e.Statistics[i]
+	}
 	base = strings.ToLower(e.Namespace) + "_" + pascalToUnderScores(base)
 	base = strings.ReplaceAll(base, "/", "_")
 
 	return base
 }
 
-// XXX handle _index thing for DDB
 // XXX metrics for AWS API
 func (c *configuration) Validate() error {
 	// using i because we are mutating the values
