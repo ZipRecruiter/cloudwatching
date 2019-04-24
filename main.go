@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -96,6 +97,7 @@ func getMetricData(cw *cloudwatch.CloudWatch, start, end time.Time, mdq []*cloud
 		}
 		if len(gmdo.Messages) != 0 {
 			for _, m := range gmdo.Messages {
+				log.Print("Got messages from cloudwatcn.GetMetricData", "code", *m.Code, "value", *m.Value)
 				cloudwatchGetMetricDataMessagesCounter.With(prometheus.Labels{"code": *m.Code}).Inc()
 			}
 		}
@@ -164,6 +166,7 @@ func handler(c configuration, cw *cloudwatch.CloudWatch, inner http.Handler) htt
 		start := time.Now().Add(-2 * period).Truncate(time.Minute)
 		if err := readMetrics(cw, start, period, unrolled); err != nil {
 			rw.WriteHeader(500)
+			log.Print(err)
 			return
 		}
 
@@ -175,11 +178,12 @@ func main() {
 	c := defaultConfig()
 	cw, err := initDependencies(c)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 
+	log.Print("starting httpserver", "port", "8080")
 	http.Handle("/metrics", handler(c, cw, promhttp.Handler()))
 	if err := http.ListenAndServe(":8080", nil); err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 }
