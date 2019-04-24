@@ -11,9 +11,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// Version is the GIT_SHA used to build
-var Version string
-
 var metrics map[string]exportcloudwatch.MetricStat
 
 var listMetricsSleep = prometheus.NewSummary(prometheus.SummaryOpts{
