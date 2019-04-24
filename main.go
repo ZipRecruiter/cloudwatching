@@ -15,7 +15,6 @@ import (
 var Version string
 
 var metrics map[string]exportcloudwatch.MetricStat
-var listMetricsDuration time.Duration
 
 var listMetricsSleep = prometheus.NewSummary(prometheus.SummaryOpts{
 	Name: "monitoring_cloudwatch_list_metrics_sleep",
@@ -64,10 +63,14 @@ func main() {
 		log.Fatal(err)
 	}
 
+	var listMetricsDuration time.Duration
+
+	start := time.Now()
 	metrics, err = exportcloudwatch.MetricsToRead(c.ExportConfigs, cw)
 	if err != nil {
 		log.Fatal(err)
 	}
+	listMetricsDuration = time.Now().Sub(start)
 
 	go func() {
 		for {
@@ -76,10 +79,12 @@ func main() {
 			listMetricsSleep.Observe(duration.Seconds())
 			time.Sleep(duration)
 
+			start := time.Now()
 			metrics, err = exportcloudwatch.MetricsToRead(c.ExportConfigs, cw)
 			if err != nil {
 				log.Fatal(err)
 			}
+			listMetricsDuration = time.Now().Sub(start)
 		}
 	}()
 
