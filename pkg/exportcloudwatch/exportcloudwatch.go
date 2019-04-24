@@ -101,7 +101,7 @@ func ReadMetrics(cw *cloudwatch.CloudWatch, start time.Time, period time.Duratio
 // MetricsToRead returns a map of MetricStats that match the criteria expressed
 // in the ExportConfigs.
 func MetricsToRead(ec []ExportConfig, cw *cloudwatch.CloudWatch) (map[string]MetricStat, error) {
-	ms, _, err := metricsToRead(ec, cw)
+	ms, err := metricsToRead(ec, cw)
 	if err != nil {
 		return nil, err
 	}
@@ -117,9 +117,8 @@ func (s sortableDimensions) Less(i, j int) bool { return *s[i].Name < *s[j].Name
 
 func (s sortableDimensions) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
-func metricsToRead(ec []ExportConfig, cw *cloudwatch.CloudWatch) ([]MetricStat, time.Duration, error) {
+func metricsToRead(ec []ExportConfig, cw *cloudwatch.CloudWatch) ([]MetricStat, error) {
 	var metrics []MetricStat
-	start := time.Now()
 
 	for _, exportConfig := range ec {
 		lmi := &cloudwatch.ListMetricsInput{
@@ -129,7 +128,7 @@ func metricsToRead(ec []ExportConfig, cw *cloudwatch.CloudWatch) ([]MetricStat, 
 		for {
 			lmo, err := cw.ListMetrics(lmi)
 			if err != nil {
-				return nil, time.Duration(0), errors.Wrap(err, "cloudwatch.ListMetrics")
+				return nil, errors.Wrap(err, "cloudwatch.ListMetrics")
 			}
 
 			for _, metric := range lmo.Metrics {
@@ -160,7 +159,7 @@ func metricsToRead(ec []ExportConfig, cw *cloudwatch.CloudWatch) ([]MetricStat, 
 		}
 	}
 
-	return metrics, time.Now().Sub(start), nil
+	return metrics, nil
 }
 
 func unrollMetrics(ms []MetricStat) map[string]MetricStat {
