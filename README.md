@@ -5,14 +5,9 @@ This is a reimplementation of the official
 main motivation is to use GetMetricData instead of GetMetricStatistics, which
 can lead to a reduction in AWS API calls by a factor of about 100.
 
-As of 2019-04-19 ZipRecruiter doesn't have the policies or tools to maintain
-public versions of any of our in house software, so this is a one-time snapshot
-that we hope people can use as a starting point for a properly maintained
-version.
-
 Hope this helps!
 
-- fREW Schmidt
+fREW Schmidt
 
 ---
 
