@@ -32,8 +32,9 @@ func (s sortableDimensions) Less(i, j int) bool { return *s[i].Name < *s[j].Name
 
 func (s sortableDimensions) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
-func metricsToRead(c configuration, cw *cloudwatch.CloudWatch) ([]metricStat, error) {
+func metricsToRead(c configuration, cw *cloudwatch.CloudWatch) ([]metricStat, time.Duration, error) {
 	var metrics []metricStat
+	start := time.Now()
 
 	for _, exportConfig := range c.ExportConfigs {
 		lmi := &cloudwatch.ListMetricsInput{
@@ -43,7 +44,7 @@ func metricsToRead(c configuration, cw *cloudwatch.CloudWatch) ([]metricStat, er
 		for {
 			lmo, err := cw.ListMetrics(lmi)
 			if err != nil {
-				return nil, errors.Wrap(err, "cloudwatch.ListMetrics")
+				return nil, time.Duration(0), errors.Wrap(err, "cloudwatch.ListMetrics")
 			}
 
 			for _, metric := range lmo.Metrics {
@@ -74,7 +75,7 @@ func metricsToRead(c configuration, cw *cloudwatch.CloudWatch) ([]metricStat, er
 		}
 	}
 
-	return metrics, nil
+	return metrics, time.Now().Sub(start), nil
 }
 
 var re = regexp.MustCompile("[A-Z][a-z0-9_]+")
@@ -165,20 +166,24 @@ func readMetrics(cw *cloudwatch.CloudWatch, start time.Time, period time.Duratio
 	return nil
 }
 
+var metrics map[string]metricStat
+var listMetricsDuration time.Duration
+
+var listMetricsSleep = prometheus.NewSummary(prometheus.SummaryOpts{
+	Name: "monitoring_cloudwatch_list_metrics_sleep",
+	Help: "Amount of time we are going to sleep between updating our metrics list",
+})
+
+func init() {
+	prometheus.MustRegister(listMetricsSleep)
+}
+
 // XXX have warden review this?
 func handler(c configuration, cw *cloudwatch.CloudWatch, inner http.Handler) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
-		metrics, err := metricsToRead(c, cw)
-		if err != nil {
-			rw.WriteHeader(500)
-			return
-		}
-
-		unrolled := unrollMetrics(metrics)
-
 		period := 60 * time.Second
 		start := time.Now().Add(-2 * period).Truncate(time.Minute)
-		if err := readMetrics(cw, start, period, unrolled); err != nil {
+		if err := readMetrics(cw, start, period, metrics); err != nil {
 			rw.WriteHeader(500)
 			log.Print(err)
 			return
@@ -188,12 +193,48 @@ func handler(c configuration, cw *cloudwatch.CloudWatch, inner http.Handler) htt
 	}
 }
 
+func sleepRange(got, min, max time.Duration) time.Duration {
+	if got < min {
+		return min
+	}
+
+	if got > max {
+		return max
+	}
+
+	return got
+}
+
 func main() {
 	c := defaultConfig()
 	cw, err := initDependencies(c)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	var relevantMetrics []metricStat
+	relevantMetrics, listMetricsDuration, err = metricsToRead(c, cw)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	metrics = unrollMetrics(relevantMetrics)
+
+	go func() {
+		for {
+			duration := sleepRange(10*listMetricsDuration, 5*time.Minute, time.Hour)
+
+			listMetricsSleep.Observe(duration.Seconds())
+			time.Sleep(duration)
+
+			relevantMetrics, listMetricsDuration, err = metricsToRead(c, cw)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			metrics = unrollMetrics(relevantMetrics)
+		}
+	}()
 
 	log.Print("starting httpserver", "port", "8080")
 	http.Handle("/metrics", handler(c, cw, promhttp.Handler()))
