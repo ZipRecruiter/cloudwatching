@@ -5,21 +5,94 @@ This is a reimplementation of the official
 main motivation is to use GetMetricData instead of GetMetricStatistics, which
 can lead to a reduction in AWS API calls by a factor of about 100.
 
-Hope this helps!
+## Quickstart
 
-fREW Schmidt
+```
+go get -u github.com/ZipRecruiter/monitoring--cloudwatch
+```
+
+Copy paste the following config to `~/mc.json`:
+
+```
+{
+  "exportconfigs": [
+    {
+      "dimensions": [ "QueueName"
+      ],
+      "dimensionsMatch": {
+        "QueueName": "(?i:prod)"
+      },
+      "dimensionsNoMatch": {
+        "QueueName": "(?i:dev|staging)"
+      },
+      "name": "ApproximateAgeOfOldestMessage",
+      "namespace": "AWS/SQS",
+      "statistics": [
+        "Maximum"
+      ]
+    },
+    {
+      "dimensions": [
+        "QueueName"
+      ],
+      "dimensionsMatch": {
+        "QueueName": "(?i:prod)"
+      },
+      "dimensionsNoMatch": {
+        "QueueName": "(?i:dev|staging)"
+      },
+      "name": "NumberOfMessagesReceived",
+      "namespace": "AWS/SQS",
+      "statistics": [
+        "Maximum"
+      ]
+    },
+    {
+      "dimensions": [
+        "QueueName"
+      ],
+      "dimensionsMatch": {
+        "QueueName": "(?i:prod)"
+      },
+      "dimensionsNoMatch": {
+        "QueueName": "(?i:dev|staging)"
+      },
+      "name": "NumberOfMessagesDeleted",
+      "namespace": "AWS/SQS",
+      "statistics": [
+        "Maximum"
+      ]
+    }
+  ],
+  "region": "us-east-1",
+  "debug": false,
+}
+```
+
+And run:
+
+```bash
+MC_CONFIG=~/mc.json monitoring--cloudwatch
+```
+
+You should be able to see the metrics at `locahost:8080`.
+
+## Advanced Customization
+
+The majority of the code for `monitoring--cloudwatch` is in [a
+package](https://godoc.org/github.com/ZipRecruiter/monitoring--cloudwatch/pkg/exportcloudwatch)
+so that less common requirements can be supported by a separate main package.
+
+You should be able to trivially swap in other configuration styles (like YAML,
+if that's what you prefer,) have prometheus listen at a different location.
+
+If you do create an alternate version please make sure that you are using go
+modules or some other pinning strategy.  I have ideas to improve this package
+that will require breaking changes at some point; if you don't pin, you'll need
+to fix your code when that happens.
 
 ---
 
-## Flow of the code:
+Hope this helps!
 
- 1. Each ExportConfig defines a pattern of metrics to export.
-
- 2. metricsToRead uses the config to ListMetrics and create a metricStat for
-    each metric.
-
- 3. unrollMetrics expands metricStats into a map that can be used to directly
-    update metrics.
-
- 4. readMetrics uses GetMetricData in bundles of 100 at a time to load all of
-    the cloudwatch metrics into the relevant prometheus metrics.
+fREW Schmidt

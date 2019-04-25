@@ -1,4 +1,11 @@
-// Package exportcloudwatch exports cloudwatch metrics as prometheus metrics.
+// Package exportcloudwatch exports AWS CloudWatch metrics as prometheus metrics.
+//
+// To use this package
+//
+//   1. create one or more ExportConfigs
+//   2. call Validate() on each of them
+//   3. store the result of MetricsToRead
+//   4. call ReadMetrics
 package exportcloudwatch
 
 import (

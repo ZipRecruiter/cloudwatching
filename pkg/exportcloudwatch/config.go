@@ -13,10 +13,14 @@ import (
 // ExportConfig describes which cloudwatch metrics we want to export.  Make sure
 // you call Validate.
 type ExportConfig struct {
+	// Namespace and Name map directly to metrics in AWS Cloudwatch
 	Namespace, Name string
 
+	// Dimensions are the names of dimensions to pull the data of, and Statistics
+	// are the Statistics to pull
 	Dimensions, Statistics []string
 
+	// Both of these filter the metrics based on the values of the dimension
 	DimensionsMatch, DimensionsNoMatch map[string]*regexp.Regexp
 
 	// each collector maps to the statistic in the same location
@@ -50,6 +54,8 @@ func (e *ExportConfig) String(i int) string {
 	return base
 }
 
+// Validate returns an error if the configuration is incorrect and registers
+// each metric with the default prometheus registry.
 func (e *ExportConfig) Validate() error {
 	if len(e.Statistics) == 0 {
 		return errors.New("At least one statistic is required")
