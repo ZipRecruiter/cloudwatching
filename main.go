@@ -85,7 +85,7 @@ func main() {
 		}
 	}()
 
-	log.Print("starting httpserver", "port", "8080")
+	log.Printf("starting httpserver on :8080")
 	http.Handle("/metrics", handler(c, cw, promhttp.Handler()))
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)

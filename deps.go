@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -32,9 +33,11 @@ func initDependencies(config configuration) (*cloudwatch.CloudWatch, error) {
 	// XXX recieve session as argument
 	// awssession.ApplyUserAgent(sess, fmt.Sprintf("ZipRecruiter (monitoring/cloudwatch; %s; security@ziprecruiter.com)", Version))
 
-	// if config.Debug {
-	// 	awssession.ApplyZRLogger(sess, logger)
-	// }
+	if config.Debug {
+		sess.Handlers.Send.PushFront(func(r *request.Request) {
+			log.Printf("Request: %s/%+v, Payload: %+v\n", r.ClientInfo.ServiceName, r.Operation, r.Params)
+		})
+	}
 
 	sess.Handlers.Send.SetBackNamed(request.NamedHandler{
 		Name: "Counters",
