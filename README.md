@@ -91,6 +91,11 @@ modules or some other pinning strategy.  I have ideas to improve this package
 that will require breaking changes at some point; if you don't pin, you'll need
 to fix your code when that happens.
 
+I suggest that you look over [how we create the `*cloudwatch.CloudWatch`
+client](https://github.com/ZipRecruiter/monitoring--cloudwatch/blob/master/deps.go)
+and copy some of the patterns, since surfacing how the exporter is interacting
+with the AWS API can be tricky but is worth the effort.
+
 ---
 
 Hope this helps!
