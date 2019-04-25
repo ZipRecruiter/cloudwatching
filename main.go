@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/ZipRecruiter/monitoring--cloudwatch/pkg/exportcloudwatch"
+	"github.com/ZipRecruiter/cloudwatching/pkg/exportcloudwatch"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"

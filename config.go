@@ -3,7 +3,7 @@ package main
 import (
 	"regexp"
 
-	"github.com/ZipRecruiter/monitoring--cloudwatch/pkg/exportcloudwatch"
+	"github.com/ZipRecruiter/cloudwatching/pkg/exportcloudwatch"
 )
 
 type exportConfig struct {

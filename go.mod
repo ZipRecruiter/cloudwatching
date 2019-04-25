@@ -1,4 +1,4 @@
-module github.com/ZipRecruiter/monitoring--cloudwatch
+module github.com/ZipRecruiter/cloudwatching
 
 go 1.12
 

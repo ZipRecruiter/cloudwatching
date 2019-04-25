@@ -1,4 +1,4 @@
-## monitoring--cloudwatch
+## cloudwatching
 
 This is a reimplementation of the official
 [cloudwatch-exporter](https://github.com/prometheus/cloudwatch_exporter).  The
@@ -8,7 +8,7 @@ can lead to a reduction in AWS API calls by a factor of about 100.
 ## Quickstart
 
 ```
-go get -u github.com/ZipRecruiter/monitoring--cloudwatch
+go get -u github.com/ZipRecruiter/cloudwatching
 ```
 
 Copy paste the following config to `~/mc.json`:
@@ -73,7 +73,7 @@ Copy paste the following config to `~/mc.json`:
 And run:
 
 ```bash
-MC_CONFIG=~/mc.json monitoring--cloudwatch
+MC_CONFIG=~/mc.json cloudwatching
 ```
 
 You should be able to see the metrics at `locahost:8080`.
@@ -93,8 +93,8 @@ if you are scraping table level and index level metrics.
 
 ## Advanced Customization
 
-The majority of the code for `monitoring--cloudwatch` is in [a
-package](https://godoc.org/github.com/ZipRecruiter/monitoring--cloudwatch/pkg/exportcloudwatch)
+The majority of the code for `cloudwatching` is in [a
+package](https://godoc.org/github.com/ZipRecruiter/cloudwatching/pkg/exportcloudwatch)
 so that less common requirements can be supported by a separate main package.
 
 You should be able to trivially swap in other configuration styles (like YAML,
@@ -106,7 +106,7 @@ that will require breaking changes at some point; if you don't pin, you'll need
 to fix your code when that happens.
 
 I suggest that you look over [how we create the `*cloudwatch.CloudWatch`
-client](https://github.com/ZipRecruiter/monitoring--cloudwatch/blob/master/deps.go)
+client](https://github.com/ZipRecruiter/cloudwatching/blob/master/deps.go)
 and copy some of the patterns, since surfacing how the exporter is interacting
 with the AWS API can be tricky but is worth the effort.
 
