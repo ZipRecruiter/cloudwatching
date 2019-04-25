@@ -78,6 +78,19 @@ MC_CONFIG=~/mc.json monitoring--cloudwatch
 
 You should be able to see the metrics at `locahost:8080`.
 
+## Description
+
+This tool surfaces AWS CloudWatch metrics as prometheus metrics.  It gets the
+metric data at scrape time, rather than pulling and caching periodically.
+Currently the naming of the metrics is not configurable, but that should be easy
+to fix if it would help anyone.
+
+An important detail to be aware of is that CloudWatch metrics are generally
+unlike prometheus metrics (dimensions are less like labels and more like oddly
+named directories.)  For the most part this is not a huge problem, but for
+DynamoDB Indexes we have to append `_index` to the metric to prevent collisions
+if you are scraping table level and index level metrics.
+
 ## Advanced Customization
 
 The majority of the code for `monitoring--cloudwatch` is in [a
