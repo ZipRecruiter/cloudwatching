@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/ZipRecruiter/monitoring--cloudwatch/pkg/exportcloudwatch"
@@ -49,11 +51,24 @@ func sleepRange(got, min, max time.Duration) time.Duration {
 }
 
 func main() {
+	path := os.Getenv("MC_CONFIG")
+	if path == "" {
+		log.Fatal("MC_CONFIG not set!")
+	}
+
+	configFile, err := os.Open(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	var c configuration
-	// if err := config.Read(&c); err != nil {
-	// 	log.Err(context.Background(), logger, err)
-	// 	os.Exit(1)
-	// }
+	d := json.NewDecoder(configFile)
+	if err := d.Decode(&c); err != nil {
+		log.Fatal(err)
+	}
+	if err := c.Validate(); err != nil {
+		log.Fatal(err)
+	}
 
 	cw, err := initDependencies(c)
 	if err != nil {
