@@ -17,7 +17,8 @@ Copy paste the following config to `~/mc.json`:
 {
   "exportconfigs": [
     {
-      "dimensions": [ "QueueName"
+      "dimensions": [
+        "QueueName"
       ],
       "dimensionsMatch": {
         "QueueName": "(?i:prod)"
@@ -65,7 +66,7 @@ Copy paste the following config to `~/mc.json`:
     }
   ],
   "region": "us-east-1",
-  "debug": false,
+  "debug": false
 }
 ```
 
