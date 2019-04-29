@@ -16,8 +16,8 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/xerrors"
 )
 
 var cloudwatchGetMetricDataMessagesCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -45,7 +45,7 @@ func getMetricData(cw *cloudwatch.CloudWatch, start, end time.Time, mdq []*cloud
 	for {
 		gmdo, err := cw.GetMetricData(gmdi)
 		if err != nil {
-			return errors.Wrap(err, "cloudwatch.GetMetricData")
+			return xerrors.Errorf("cloudwatch.CloudWatch.GetMetricData: %w", err)
 		}
 		if len(gmdo.Messages) != 0 {
 			for _, m := range gmdo.Messages {
@@ -135,7 +135,7 @@ func metricsToRead(ec []ExportConfig, cw *cloudwatch.CloudWatch) ([]MetricStat, 
 		for {
 			lmo, err := cw.ListMetrics(lmi)
 			if err != nil {
-				return nil, errors.Wrap(err, "cloudwatch.ListMetrics")
+				return nil, xerrors.Errorf("cloudwatch.CloudWatch.ListMetrics: %w", err)
 			}
 
 			for _, metric := range lmo.Metrics {

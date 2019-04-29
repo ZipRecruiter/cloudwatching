@@ -4,7 +4,6 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -68,7 +67,11 @@ func TestValidate(t *testing.T) {
 				},
 			},
 
-			err: errors.New("DimensionsMatch name not in Dimensions"),
+			err: &ErrConfig{
+				Namespace: "AWS/SQS",
+				Name:      "ApproximateAgeOfOldestMessage",
+				inner:     errDimensionMismatch,
+			},
 		},
 		{
 			name: "Unknown NoMatch Dimension",
@@ -85,7 +88,11 @@ func TestValidate(t *testing.T) {
 				},
 			},
 
-			err: errors.New("DimensionsNoMatch name not in Dimensions"),
+			err: &ErrConfig{
+				Namespace: "AWS/SQS",
+				Name:      "ApproximateAgeOfOldestMessage",
+				inner:     errDimensionNoMismatch,
+			},
 		},
 	}
 
