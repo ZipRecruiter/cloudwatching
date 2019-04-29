@@ -30,7 +30,7 @@ var cloudwatchGetMetricDataMessagesCounter = prometheus.NewCounterVec(prometheus
 type MetricStat struct {
 	statistic        string
 	cloudwatchMetric *cloudwatch.Metric
-	gauge            prometheus.Gauge
+	measure          func(float64)
 }
 
 func getMetricData(cw *cloudwatch.CloudWatch, start, end time.Time, mdq []*cloudwatch.MetricDataQuery, unrolled map[string]MetricStat) error {
@@ -56,7 +56,7 @@ func getMetricData(cw *cloudwatch.CloudWatch, start, end time.Time, mdq []*cloud
 
 		for _, v := range gmdo.MetricDataResults {
 			if len(v.Values) != 0 {
-				unrolled[*v.Id].gauge.Set(*v.Values[0])
+				unrolled[*v.Id].measure(*v.Values[0])
 			}
 		}
 
@@ -150,10 +150,22 @@ func metricsToRead(ec []ExportConfig, cw *cloudwatch.CloudWatch) ([]MetricStat, 
 						values = append(values, *v.Value)
 					}
 
+					var measure func(float64)
+
+					gauge := exportConfig.Collectors[i].WithLabelValues(values...)
+					if len(exportConfig.Transform) == 0 || exportConfig.Transform[i] == nil {
+						measure = func(v float64) { gauge.Set(v) }
+					} else {
+						transform := exportConfig.Transform[i]
+						measure = func(v float64) {
+							v = transform(v)
+							gauge.Set(v)
+						}
+					}
 					metrics = append(metrics, MetricStat{
 						statistic:        s,
 						cloudwatchMetric: metric,
-						gauge:            exportConfig.collectors[i].WithLabelValues(values...),
+						measure:          measure,
 					})
 				}
 			}

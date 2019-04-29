@@ -18,7 +18,7 @@ type validateTest struct {
 
 func xxxAxeCollectors(c []ExportConfig) {
 	for i := range c {
-		c[i].collectors = nil
+		c[i].Collectors = nil
 		c[i].DimensionsMatch = nil
 		c[i].DimensionsNoMatch = nil
 	}

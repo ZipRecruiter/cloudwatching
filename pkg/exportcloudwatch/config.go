@@ -20,11 +20,16 @@ type ExportConfig struct {
 	// are the Statistics to pull
 	Dimensions, Statistics []string
 
+	// Parallel array with Statistics to transform the values. Can be empty or
+	// same length as Statistics.
+	Transform []func(float64) float64
+
 	// Both of these filter the metrics based on the values of the dimension
 	DimensionsMatch, DimensionsNoMatch map[string]*regexp.Regexp
 
-	// each collector maps to the statistic in the same location
-	collectors []*prometheus.GaugeVec
+	// A slice of GaugeVecs.  Leave empty and they'll be generated and registered
+	// for you.
+	Collectors []*prometheus.GaugeVec
 }
 
 func (e *ExportConfig) isDynamodDBIndexMetric() bool {
@@ -94,20 +99,30 @@ func (e *ExportConfig) Validate() error {
 		}
 	}
 
-	e.collectors = make([]*prometheus.GaugeVec, len(e.Statistics))
-	aliasedDimensions := make([]string, len(e.Dimensions))
-	for j, d := range e.Dimensions {
-		aliasedDimensions[j] = pascalToUnderScores(d)
+	if len(e.Collectors) == 0 {
+		e.Collectors = make([]*prometheus.GaugeVec, len(e.Statistics))
+		aliasedDimensions := make([]string, len(e.Dimensions))
+		for j, d := range e.Dimensions {
+			aliasedDimensions[j] = pascalToUnderScores(d)
+		}
+
+		for j := range e.Statistics {
+			e.Collectors[j] = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+				Name: e.String(j),
+				Help: "",
+			}, aliasedDimensions)
+			if err := prometheus.Register(e.Collectors[j]); err != nil {
+				return errors.Wrap(err, "Namespace="+e.Namespace+" Name="+e.Name)
+			}
+		}
 	}
 
-	for j := range e.Statistics {
-		e.collectors[j] = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: e.String(j),
-			Help: "",
-		}, aliasedDimensions)
-		if err := prometheus.Register(e.collectors[j]); err != nil {
-			return errors.Wrap(err, "Namespace="+e.Namespace+" Name="+e.Name)
-		}
+	if len(e.Collectors) != len(e.Statistics) {
+		return errors.Wrap(errors.New("Collectors length not equal to Statistics length"), "namespace="+e.Namespace+" name="+e.Name)
+	}
+
+	if len(e.Transform) != 0 && len(e.Transform) != len(e.Statistics) {
+		return errors.Wrap(errors.New("Transform length not equal to Statistics length"), "namespace="+e.Namespace+" name="+e.Name)
 	}
 
 	return nil
