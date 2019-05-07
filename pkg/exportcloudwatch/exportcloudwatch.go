@@ -11,6 +11,7 @@ package exportcloudwatch
 import (
 	"fmt"
 	"log"
+	"math"
 	"sort"
 	"time"
 
@@ -32,6 +33,8 @@ type MetricStat struct {
 	cloudwatchMetric *cloudwatch.Metric
 	measure          func(float64)
 }
+
+var nan = math.NaN()
 
 func getMetricData(cw *cloudwatch.CloudWatch, start, end time.Time, mdq []*cloudwatch.MetricDataQuery, unrolled map[string]MetricStat) error {
 	gmdi := &cloudwatch.GetMetricDataInput{
@@ -57,6 +60,8 @@ func getMetricData(cw *cloudwatch.CloudWatch, start, end time.Time, mdq []*cloud
 		for _, v := range gmdo.MetricDataResults {
 			if len(v.Values) != 0 {
 				unrolled[*v.Id].measure(*v.Values[0])
+			} else {
+				unrolled[*v.Id].measure(nan)
 			}
 		}
 
