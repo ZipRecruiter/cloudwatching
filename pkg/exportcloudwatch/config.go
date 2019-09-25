@@ -41,10 +41,42 @@ func (e *ExportConfig) isDynamodDBIndexMetric() bool {
 	return false
 }
 
+func (e *ExportConfig) isRDSDBClusterMetric() bool {
+	if e.Namespace != "AWS/RDS" {
+		return false
+	}
+
+	for _, d := range e.Dimensions {
+		if d == "DBClusterIdentifier" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (e *ExportConfig) isRDSDBInstanceMetric() bool {
+	if e.Namespace != "AWS/RDS" {
+		return false
+	}
+
+	for _, d := range e.Dimensions {
+		if d == "DBInstanceIdentifier" {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (e *ExportConfig) String(i int) string {
 	var base string
 	if e.isDynamodDBIndexMetric() {
 		base = e.Name + "Index" + e.Statistics[i]
+	} else if e.isRDSDBClusterMetric() {
+		base = e.Name + "Cluster" + e.Statistics[i]
+	} else if e.isRDSDBInstanceMetric() {
+		base = e.Name + "Instance" + e.Statistics[i]
 	} else {
 		base = e.Name + e.Statistics[i]
 	}

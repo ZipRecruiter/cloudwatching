@@ -87,9 +87,14 @@ to fix if it would help anyone.
 
 An important detail to be aware of is that CloudWatch metrics are generally
 unlike prometheus metrics (dimensions are less like labels and more like oddly
-named directories.)  For the most part this is not a huge problem, but for
-DynamoDB Indexes we have to append `_index` to the metric to prevent collisions
-if you are scraping table level and index level metrics.
+named directories.)  For the most part this is not a huge problem, though there
+are caveats:
+
+* for DynamoDB Indexes, we have to append `_index` to the metric to prevent
+  collisions if you are scraping table-level and index-level metrics;
+* for RDS DB Clusters and DB Instances, we have to append `_cluster` and
+  `_instance` respectively to prevent collisions when scraping cluster-level
+  and instance-level metrics.
 
 ## Advanced Customization
 
