@@ -10,6 +10,20 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// StatDefaultType describes how to deal with a stat that has no value
+type StatDefaultType int
+
+const (
+	// Prior leaves the stat set to its prior value; this is the default
+	Prior StatDefaultType = iota
+
+	// Zero will set the stat to 0
+	Zero
+
+	// NaN will set the stat to not-a-number
+	NaN
+)
+
 // ExportConfig describes which cloudwatch metrics we want to export.  Make sure
 // you call Validate.
 type ExportConfig struct {
@@ -22,6 +36,9 @@ type ExportConfig struct {
 
 	// Both of these filter the metrics based on the values of the dimension
 	DimensionsMatch, DimensionsNoMatch map[string]*regexp.Regexp
+
+	// StatDefault determines the default value for a stat if no value is read
+	StatDefault StatDefaultType
 
 	// each collector maps to the statistic in the same location
 	collectors []*prometheus.GaugeVec

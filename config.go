@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"regexp"
 
 	"github.com/ZipRecruiter/cloudwatching/pkg/exportcloudwatch"
@@ -12,6 +13,8 @@ type exportConfig struct {
 	Dimensions, Statistics []string
 
 	DimensionsMatch, DimensionsNoMatch map[string]string
+
+	StatDefault string
 }
 
 type configuration struct {
@@ -33,6 +36,16 @@ func (c *configuration) Validate() error {
 			Statistics:        raw.Statistics,
 			DimensionsMatch:   make(map[string]*regexp.Regexp, len(raw.DimensionsMatch)),
 			DimensionsNoMatch: make(map[string]*regexp.Regexp, len(raw.DimensionsNoMatch)),
+		}
+
+		if raw.StatDefault == "Prior" {
+			c.exportConfigs[i].StatDefault = exportcloudwatch.Prior
+		} else if raw.StatDefault == "Zero" {
+			c.exportConfigs[i].StatDefault = exportcloudwatch.Zero
+		} else if raw.StatDefault == "NaN" {
+			c.exportConfigs[i].StatDefault = exportcloudwatch.NaN
+		} else if raw.StatDefault != "" {
+			return errors.New("StatDefault must be one of Prior, Zero, or NaN")
 		}
 
 		for k, v := range raw.DimensionsMatch {
