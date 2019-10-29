@@ -11,6 +11,7 @@ package exportcloudwatch
 import (
 	"fmt"
 	"log"
+	"math"
 	"sort"
 	"time"
 
@@ -31,6 +32,7 @@ type MetricStat struct {
 	statistic        string
 	cloudwatchMetric *cloudwatch.Metric
 	gauge            prometheus.Gauge
+	statDefault      StatDefaultType
 }
 
 func getMetricData(cw *cloudwatch.CloudWatch, start, end time.Time, mdq []*cloudwatch.MetricDataQuery, unrolled map[string]MetricStat) error {
@@ -40,6 +42,15 @@ func getMetricData(cw *cloudwatch.CloudWatch, start, end time.Time, mdq []*cloud
 
 		MetricDataQueries: mdq,
 		NextToken:         nil,
+	}
+
+	// set default values for stat according to config
+	for _, ms := range unrolled {
+		if ms.statDefault == Zero {
+			ms.gauge.Set(0)
+		} else if ms.statDefault == NaN {
+			ms.gauge.Set(math.NaN())
+		}
 	}
 
 	for {
@@ -154,6 +165,7 @@ func metricsToRead(ec []ExportConfig, cw *cloudwatch.CloudWatch) ([]MetricStat, 
 						statistic:        s,
 						cloudwatchMetric: metric,
 						gauge:            exportConfig.collectors[i].WithLabelValues(values...),
+						statDefault:      exportConfig.StatDefault,
 					})
 				}
 			}

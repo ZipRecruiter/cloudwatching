@@ -41,15 +41,17 @@ func TestValidate(t *testing.T) {
 					DimensionsNoMatch: map[string]*regexp.Regexp{
 						"QueueName": regexp.MustCompile("^bar"),
 					},
+					StatDefault: Zero,
 				},
 			},
 
 			out: []ExportConfig{
 				{
-					Namespace:  "AWS/SQS",
-					Name:       "ApproximateAgeOfOldestMessage",
-					Dimensions: []string{"Alpha", "QueueName"},
-					Statistics: []string{"Maximum"},
+					Namespace:   "AWS/SQS",
+					Name:        "ApproximateAgeOfOldestMessage",
+					Dimensions:  []string{"Alpha", "QueueName"},
+					Statistics:  []string{"Maximum"},
+					StatDefault: Zero,
 				},
 			},
 		},
