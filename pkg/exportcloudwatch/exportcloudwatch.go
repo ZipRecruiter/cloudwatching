@@ -44,15 +44,6 @@ func getMetricData(cw *cloudwatch.CloudWatch, start, end time.Time, mdq []*cloud
 		NextToken:         nil,
 	}
 
-	// set default values for stat according to config
-	for _, ms := range unrolled {
-		if ms.statDefault == Zero {
-			ms.gauge.Set(0)
-		} else if ms.statDefault == NaN {
-			ms.gauge.Set(math.NaN())
-		}
-	}
-
 	for {
 		gmdo, err := cw.GetMetricData(gmdi)
 		if err != nil {
@@ -85,6 +76,15 @@ func getMetricData(cw *cloudwatch.CloudWatch, start, end time.Time, mdq []*cloud
 // into the metricstats map.
 func ReadMetrics(cw *cloudwatch.CloudWatch, start time.Time, period time.Duration, metricstats map[string]MetricStat) error {
 	end := start.Add(period)
+
+	// set default values for stat according to config
+	for _, ms := range metricstats {
+		if ms.statDefault == Zero {
+			ms.gauge.Set(0)
+		} else if ms.statDefault == NaN {
+			ms.gauge.Set(math.NaN())
+		}
+	}
 
 	mdq := make([]*cloudwatch.MetricDataQuery, 0, 100)
 	for k, v := range metricstats {
