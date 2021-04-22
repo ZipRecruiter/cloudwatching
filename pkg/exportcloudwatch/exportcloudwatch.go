@@ -35,7 +35,11 @@ type MetricStat struct {
 	statDefault      StatDefaultType
 }
 
-func getMetricData(cw *cloudwatch.CloudWatch, start, end time.Time, mdq []*cloudwatch.MetricDataQuery, unrolled map[string]MetricStat, seen map[string]struct{}) error {
+type MetricDataGetter interface {
+	GetMetricData(*cloudwatch.GetMetricDataInput) (*cloudwatch.GetMetricDataOutput, error)
+}
+
+func getMetricData(cw MetricDataGetter, start, end time.Time, mdq []*cloudwatch.MetricDataQuery, unrolled map[string]MetricStat, seen map[string]struct{}) error {
 	gmdi := &cloudwatch.GetMetricDataInput{
 		StartTime: aws.Time(start),
 		EndTime:   aws.Time(end),
@@ -75,7 +79,7 @@ func getMetricData(cw *cloudwatch.CloudWatch, start, end time.Time, mdq []*cloud
 
 // ReadMetrics pulls metrics for the passed time over the period of duration
 // into the metricstats map.
-func ReadMetrics(cw *cloudwatch.CloudWatch, start time.Time, period time.Duration, metricstats map[string]MetricStat) error {
+func ReadMetrics(cw MetricDataGetter, start time.Time, period time.Duration, metricstats map[string]MetricStat) error {
 	end := start.Add(period)
 
 	seen := make(map[string]struct{}, len(metricstats))
