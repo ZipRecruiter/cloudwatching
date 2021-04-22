@@ -35,7 +35,7 @@ type MetricStat struct {
 	statDefault      StatDefaultType
 }
 
-func getMetricData(cw *cloudwatch.CloudWatch, start, end time.Time, mdq []*cloudwatch.MetricDataQuery, unrolled map[string]MetricStat) error {
+func getMetricData(cw *cloudwatch.CloudWatch, start, end time.Time, mdq []*cloudwatch.MetricDataQuery, unrolled map[string]MetricStat, seen map[string]struct{}) error {
 	gmdi := &cloudwatch.GetMetricDataInput{
 		StartTime: aws.Time(start),
 		EndTime:   aws.Time(end),
@@ -59,6 +59,7 @@ func getMetricData(cw *cloudwatch.CloudWatch, start, end time.Time, mdq []*cloud
 		for _, v := range gmdo.MetricDataResults {
 			if len(v.Values) != 0 {
 				unrolled[*v.Id].gauge.Set(*v.Values[0])
+				seen[*v.Id] = struct{}{}
 			}
 		}
 
@@ -77,15 +78,7 @@ func getMetricData(cw *cloudwatch.CloudWatch, start, end time.Time, mdq []*cloud
 func ReadMetrics(cw *cloudwatch.CloudWatch, start time.Time, period time.Duration, metricstats map[string]MetricStat) error {
 	end := start.Add(period)
 
-	// set default values for stat according to config
-	for _, ms := range metricstats {
-		if ms.statDefault == Zero {
-			ms.gauge.Set(0)
-		} else if ms.statDefault == NaN {
-			ms.gauge.Set(math.NaN())
-		}
-	}
-
+	seen := make(map[string]struct{}, len(metricstats))
 	mdq := make([]*cloudwatch.MetricDataQuery, 0, 100)
 	for k, v := range metricstats {
 		mdq = append(mdq, &cloudwatch.MetricDataQuery{
@@ -99,7 +92,7 @@ func ReadMetrics(cw *cloudwatch.CloudWatch, start time.Time, period time.Duratio
 		})
 
 		if len(mdq) == 100 {
-			if err := getMetricData(cw, start, end, mdq, metricstats); err != nil {
+			if err := getMetricData(cw, start, end, mdq, metricstats, seen); err != nil {
 				return err
 			}
 
@@ -108,8 +101,20 @@ func ReadMetrics(cw *cloudwatch.CloudWatch, start time.Time, period time.Duratio
 	}
 
 	if len(mdq) != 0 {
-		if err := getMetricData(cw, start, end, mdq, metricstats); err != nil {
+		if err := getMetricData(cw, start, end, mdq, metricstats, seen); err != nil {
 			return err
+		}
+	}
+
+	// set default values for stat according to config for stats no longer seen
+	for k, ms := range metricstats {
+		if _, ok := seen[k]; ok {
+			continue
+		}
+		if ms.statDefault == Zero {
+			ms.gauge.Set(0)
+		} else if ms.statDefault == NaN {
+			ms.gauge.Set(math.NaN())
 		}
 	}
 
