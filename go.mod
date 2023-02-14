@@ -3,7 +3,7 @@ module github.com/ZipRecruiter/cloudwatching
 go 1.12
 
 require (
-	github.com/aws/aws-sdk-go v1.33.0
+	github.com/aws/aws-sdk-go v1.34.0
 	github.com/beorn7/perks v1.0.0 // indirect
 	github.com/golang/protobuf v1.3.1 // indirect
 	github.com/pkg/errors v0.9.1
