@@ -38,7 +38,7 @@ func (tw *testWriter) Write(payload []byte) (int, error) {
 	return len(payload), nil
 }
 
-func TestPascalToUnderScores(t *testing.T) {
+func TestCloudWatchToPrometheusName(t *testing.T) {
 	for _, test := range stringTests {
 		test := test
 
@@ -46,9 +46,9 @@ func TestPascalToUnderScores(t *testing.T) {
 			tw := &testWriter{t: t}
 			log.SetOutput(tw)
 
-			gotOutput := pascalToUnderScores(test.input)
+			gotOutput := cloudWatchToPrometheusName(test.input)
 			if gotOutput != test.expectedOutput {
-				t.Fatalf("pascalToUnderScores(%q) != %q (got %q instead)", test.input, test.expectedOutput, gotOutput)
+				t.Fatalf("cloudWatchToPrometheusName(%q) != %q (got %q instead)", test.input, test.expectedOutput, gotOutput)
 			}
 		})
 	}

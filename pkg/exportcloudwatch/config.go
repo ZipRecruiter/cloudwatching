@@ -97,7 +97,7 @@ func (e *ExportConfig) String(i int) string {
 	} else {
 		base = e.Name + e.Statistics[i]
 	}
-	base = strings.ToLower(e.Namespace) + "_" + pascalToUnderScores(base)
+	base = strings.ToLower(e.Namespace) + "_" + cloudWatchToPrometheusName(base)
 	base = strings.ReplaceAll(base, "/", "_")
 
 	return base
@@ -146,7 +146,7 @@ func (e *ExportConfig) Validate() error {
 	e.collectors = make([]*prometheus.GaugeVec, len(e.Statistics))
 	aliasedDimensions := make([]string, len(e.Dimensions))
 	for j, d := range e.Dimensions {
-		aliasedDimensions[j] = pascalToUnderScores(d)
+		aliasedDimensions[j] = cloudWatchToPrometheusName(d)
 	}
 
 	for j := range e.Statistics {

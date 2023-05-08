@@ -10,7 +10,7 @@ var (
 	pascalCaseWordsRE = regexp.MustCompile("([A-Z0-9]*)([a-z]*)")
 )
 
-func pascalToUnderScores(in string) string {
+func cloudWatchToPrometheusName(in string) string {
 	words := make([]string, 0)
 
 	// CloudWatch metrics follow a "SequenceOfPascalCaseWords" naming scheme, for the most part - so
