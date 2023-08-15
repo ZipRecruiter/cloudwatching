@@ -1,6 +1,7 @@
 package exportcloudwatch
 
 import (
+	"fmt"
 	"regexp"
 	"sort"
 	"strings"
@@ -39,6 +40,11 @@ type ExportConfig struct {
 
 	// StatDefault determines the default value for a stat if no value is read
 	StatDefault StatDefaultType
+
+	// NameDerivationVersion specifies the algorithm used to convert CloudWatch metric names
+	// to Prometheus metric names.  0 (the default) is the "legacy"/"classic" naming scheme;
+	// 1 is the new naming scheme, which should result in fewer overlaps in derived metric names
+	NameDerivationVersion uint
 
 	// each collector maps to the statistic in the same location
 	collectors []*prometheus.GaugeVec
@@ -86,6 +92,17 @@ func (e *ExportConfig) isRDSDBInstanceMetric() bool {
 	return false
 }
 
+func (e *ExportConfig) cloudWatchToPrometheusName(base string) string {
+	switch e.NameDerivationVersion {
+	case 0:
+		return cloudWatchToPrometheusNameV0(base)
+	case 1:
+		return cloudWatchToPrometheusNameV1(base)
+	default:
+		panic(fmt.Sprintf("invalid NameDerivationVersion: %d", e.NameDerivationVersion))
+	}
+}
+
 func (e *ExportConfig) String(i int) string {
 	var base string
 	if e.isDynamodDBIndexMetric() {
@@ -97,7 +114,8 @@ func (e *ExportConfig) String(i int) string {
 	} else {
 		base = e.Name + e.Statistics[i]
 	}
-	base = strings.ToLower(e.Namespace) + "_" + cloudWatchToPrometheusName(base)
+
+	base = strings.ToLower(e.Namespace) + "_" + e.cloudWatchToPrometheusName(base)
 	base = strings.ReplaceAll(base, "/", "_")
 
 	return base
@@ -108,6 +126,10 @@ func (e *ExportConfig) String(i int) string {
 func (e *ExportConfig) Validate() error {
 	if len(e.Statistics) == 0 {
 		return errors.New("At least one statistic is required")
+	}
+
+	if e.NameDerivationVersion > 1 {
+		return errors.New("Invalid NameDerivationVersion (must be 0 or 1)")
 	}
 
 	// these to cheaply compare to other list at runtime
@@ -146,7 +168,7 @@ func (e *ExportConfig) Validate() error {
 	e.collectors = make([]*prometheus.GaugeVec, len(e.Statistics))
 	aliasedDimensions := make([]string, len(e.Dimensions))
 	for j, d := range e.Dimensions {
-		aliasedDimensions[j] = cloudWatchToPrometheusName(d)
+		aliasedDimensions[j] = e.cloudWatchToPrometheusName(d)
 	}
 
 	for j := range e.Statistics {

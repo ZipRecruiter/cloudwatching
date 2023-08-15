@@ -5,12 +5,25 @@ import (
 	"strings"
 )
 
+var re = regexp.MustCompile("[A-Z][a-z0-9_]+")
+
+func cloudWatchToPrometheusNameV0(in string) string {
+	found := re.FindAllString(in, -1)
+
+	ret := strings.ToLower(found[0])
+	for _, s := range found[1:] {
+		ret += "_" + strings.ToLower(s)
+	}
+
+	return ret
+}
+
 var (
 	nonAlphaCharsRE   = regexp.MustCompile("[^a-zA-Z0-9]")
 	pascalCaseWordsRE = regexp.MustCompile("([A-Z0-9]*)([a-z]*)")
 )
 
-func cloudWatchToPrometheusName(in string) string {
+func cloudWatchToPrometheusNameV1(in string) string {
 	words := make([]string, 0)
 
 	// CloudWatch metrics follow a "SequenceOfPascalCaseWords" naming scheme, for the most part - so

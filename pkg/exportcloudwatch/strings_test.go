@@ -11,7 +11,12 @@ type stringTest struct {
 	expectedOutput string
 }
 
-var stringTests []stringTest = []stringTest{
+var stringTestsV0 []stringTest = []stringTest{
+	{input: "AllErrors", expectedOutput: "all_errors"},
+	{input: "DescribeDeliveryStream.Requests", expectedOutput: "describe_delivery_stream_requests"},
+}
+
+var stringTestsV1 []stringTest = []stringTest{
 	{input: "AllErrors", expectedOutput: "all_errors"},
 	{input: "2xx", expectedOutput: "2xx"},
 	{input: "4xxErrors", expectedOutput: "4xx_errors"},
@@ -38,17 +43,33 @@ func (tw *testWriter) Write(payload []byte) (int, error) {
 	return len(payload), nil
 }
 
-func TestCloudWatchToPrometheusName(t *testing.T) {
-	for _, test := range stringTests {
+func TestCloudWatchToPrometheusNameV0(t *testing.T) {
+	for _, test := range stringTestsV0 {
 		test := test
 
 		t.Run(test.input, func(t *testing.T) {
 			tw := &testWriter{t: t}
 			log.SetOutput(tw)
 
-			gotOutput := cloudWatchToPrometheusName(test.input)
+			gotOutput := cloudWatchToPrometheusNameV0(test.input)
 			if gotOutput != test.expectedOutput {
-				t.Fatalf("cloudWatchToPrometheusName(%q) != %q (got %q instead)", test.input, test.expectedOutput, gotOutput)
+				t.Fatalf("cloudWatchToPrometheusNameV0(%q) != %q (got %q instead)", test.input, test.expectedOutput, gotOutput)
+			}
+		})
+	}
+}
+
+func TestCloudWatchToPrometheusNameV1(t *testing.T) {
+	for _, test := range stringTestsV1 {
+		test := test
+
+		t.Run(test.input, func(t *testing.T) {
+			tw := &testWriter{t: t}
+			log.SetOutput(tw)
+
+			gotOutput := cloudWatchToPrometheusNameV1(test.input)
+			if gotOutput != test.expectedOutput {
+				t.Fatalf("cloudWatchToPrometheusNameV1(%q) != %q (got %q instead)", test.input, test.expectedOutput, gotOutput)
 			}
 		})
 	}
