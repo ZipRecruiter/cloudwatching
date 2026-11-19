@@ -9,14 +9,16 @@
 package exportcloudwatch
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math"
 	"sort"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/cloudwatch"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -26,30 +28,26 @@ var cloudwatchGetMetricDataMessagesCounter = prometheus.NewCounterVec(prometheus
 	Help: "Count of messages we got with code dimension; see https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_MessageData.html",
 }, []string{"code"})
 
-// MetricStat is a specific statistic for a *cloudwatch.Metric with a related,
+// MetricStat is a specific statistic for a *types.Metric with a related,
 // registered *prometheus.Gauge
 type MetricStat struct {
 	statistic        string
-	cloudwatchMetric *cloudwatch.Metric
+	cloudwatchMetric *types.Metric
 	gauge            prometheus.Gauge
 	statDefault      StatDefaultType
 }
 
-type MetricDataGetter interface {
-	GetMetricData(*cloudwatch.GetMetricDataInput) (*cloudwatch.GetMetricDataOutput, error)
-}
-
-func getMetricData(cw MetricDataGetter, start, end time.Time, mdq []*cloudwatch.MetricDataQuery, unrolled map[string]MetricStat, seen map[string]struct{}) error {
+func getMetricData(ctx context.Context, cw cloudwatch.GetMetricDataAPIClient, start, end time.Time, mdq []types.MetricDataQuery, unrolled map[string]MetricStat, seen map[string]struct{}) error {
 	gmdi := &cloudwatch.GetMetricDataInput{
 		StartTime: aws.Time(start),
 		EndTime:   aws.Time(end),
 
 		MetricDataQueries: mdq,
-		NextToken:         nil,
 	}
 
-	for {
-		gmdo, err := cw.GetMetricData(gmdi)
+	p := cloudwatch.NewGetMetricDataPaginator(cw, gmdi)
+	for p.HasMorePages() {
+		gmdo, err := p.NextPage(ctx)
 		if err != nil {
 			return errors.Wrap(err, "cloudwatch.GetMetricData")
 		}
@@ -62,15 +60,9 @@ func getMetricData(cw MetricDataGetter, start, end time.Time, mdq []*cloudwatch.
 
 		for _, v := range gmdo.MetricDataResults {
 			if len(v.Values) != 0 {
-				unrolled[*v.Id].gauge.Set(*v.Values[0])
+				unrolled[*v.Id].gauge.Set(v.Values[0])
 				seen[*v.Id] = struct{}{}
 			}
-		}
-
-		if gmdo.NextToken != nil {
-			gmdi.NextToken = gmdo.NextToken
-		} else {
-			break
 		}
 	}
 
@@ -79,33 +71,33 @@ func getMetricData(cw MetricDataGetter, start, end time.Time, mdq []*cloudwatch.
 
 // ReadMetrics pulls metrics for the passed time over the period of duration
 // into the metricstats map.
-func ReadMetrics(cw MetricDataGetter, start time.Time, period time.Duration, metricstats map[string]MetricStat) error {
+func ReadMetrics(ctx context.Context, cw cloudwatch.GetMetricDataAPIClient, start time.Time, period time.Duration, metricstats map[string]MetricStat) error {
 	end := start.Add(period)
 
 	seen := make(map[string]struct{}, len(metricstats))
-	mdq := make([]*cloudwatch.MetricDataQuery, 0, 100)
+	mdq := make([]types.MetricDataQuery, 0, 100)
 	for k, v := range metricstats {
-		mdq = append(mdq, &cloudwatch.MetricDataQuery{
+		mdq = append(mdq, types.MetricDataQuery{
 			Id: aws.String(k),
-			MetricStat: &cloudwatch.MetricStat{
+			MetricStat: &types.MetricStat{
 				Metric: v.cloudwatchMetric,
-				Period: aws.Int64(int64(period / time.Second)),
+				Period: aws.Int32(int32(period / time.Second)),
 				Stat:   aws.String(v.statistic),
 			},
 			ReturnData: aws.Bool(true),
 		})
 
 		if len(mdq) == 100 {
-			if err := getMetricData(cw, start, end, mdq, metricstats, seen); err != nil {
+			if err := getMetricData(ctx, cw, start, end, mdq, metricstats, seen); err != nil {
 				return err
 			}
 
-			mdq = make([]*cloudwatch.MetricDataQuery, 0, 100)
+			mdq = make([]types.MetricDataQuery, 0, 100)
 		}
 	}
 
 	if len(mdq) != 0 {
-		if err := getMetricData(cw, start, end, mdq, metricstats, seen); err != nil {
+		if err := getMetricData(ctx, cw, start, end, mdq, metricstats, seen); err != nil {
 			return err
 		}
 	}
@@ -127,8 +119,8 @@ func ReadMetrics(cw MetricDataGetter, start time.Time, period time.Duration, met
 
 // MetricsToRead returns a map of MetricStats that match the criteria expressed
 // in the ExportConfigs.
-func MetricsToRead(ec []ExportConfig, cw *cloudwatch.CloudWatch) (map[string]MetricStat, error) {
-	ms, err := metricsToRead(ec, cw)
+func MetricsToRead(ctx context.Context, ec []ExportConfig, cw cloudwatch.ListMetricsAPIClient) (map[string]MetricStat, error) {
+	ms, err := metricsToRead(ctx, ec, cw)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +128,7 @@ func MetricsToRead(ec []ExportConfig, cw *cloudwatch.CloudWatch) (map[string]Met
 	return unrollMetrics(ms), nil
 }
 
-type sortableDimensions []*cloudwatch.Dimension
+type sortableDimensions []types.Dimension
 
 func (s sortableDimensions) Len() int { return len(s) }
 
@@ -144,7 +136,7 @@ func (s sortableDimensions) Less(i, j int) bool { return *s[i].Name < *s[j].Name
 
 func (s sortableDimensions) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
-func metricsToRead(ec []ExportConfig, cw *cloudwatch.CloudWatch) ([]MetricStat, error) {
+func metricsToRead(ctx context.Context, ec []ExportConfig, cw cloudwatch.ListMetricsAPIClient) ([]MetricStat, error) {
 	var metrics []MetricStat
 
 	for _, exportConfig := range ec {
@@ -152,13 +144,15 @@ func metricsToRead(ec []ExportConfig, cw *cloudwatch.CloudWatch) ([]MetricStat, 
 			MetricName: aws.String(exportConfig.Name),
 			Namespace:  aws.String(exportConfig.Namespace),
 		}
-		for {
-			lmo, err := cw.ListMetrics(lmi)
+		p := cloudwatch.NewListMetricsPaginator(cw, lmi)
+		for p.HasMorePages() {
+			lmo, err := p.NextPage(ctx)
 			if err != nil {
 				return nil, errors.Wrap(err, "cloudwatch.ListMetrics")
 			}
 
-			for _, metric := range lmo.Metrics {
+			for j := range lmo.Metrics {
+				metric := &lmo.Metrics[j]
 				if !includeMetric(exportConfig, metric) {
 					continue
 				}
@@ -177,12 +171,6 @@ func metricsToRead(ec []ExportConfig, cw *cloudwatch.CloudWatch) ([]MetricStat, 
 						statDefault:      exportConfig.StatDefault,
 					})
 				}
-			}
-
-			if lmo.NextToken != nil {
-				lmi.NextToken = lmo.NextToken
-			} else {
-				break
 			}
 		}
 	}

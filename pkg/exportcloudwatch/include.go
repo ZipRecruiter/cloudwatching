@@ -3,10 +3,10 @@ package exportcloudwatch
 import (
 	"sort"
 
-	"github.com/aws/aws-sdk-go/service/cloudwatch"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 )
 
-func includeMetric(e ExportConfig, m *cloudwatch.Metric) bool {
+func includeMetric(e ExportConfig, m *types.Metric) bool {
 	if len(m.Dimensions) != len(e.Dimensions) {
 		return false
 	}

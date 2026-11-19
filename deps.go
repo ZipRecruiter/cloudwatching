@@ -1,13 +1,14 @@
 package main
 
 import (
+	"context"
 	"log"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/cloudwatch"
+	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
+	"github.com/aws/smithy-go/middleware"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -25,38 +26,46 @@ func init() {
 	prometheus.MustRegister(awsRequestSeconds, awsErrorsTotal)
 }
 
-func initDependencies(config configuration) (*cloudwatch.CloudWatch, error) {
-	sess := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String(config.Region),
-	}))
+func initDependencies(ctx context.Context, config configuration) (*cloudwatch.Client, error) {
+	cfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(config.Region))
+	if err != nil {
+		return nil, err
+	}
 
-	// XXX recieve session as argument
+	// XXX recieve config as argument
 	// awssession.ApplyUserAgent(sess, fmt.Sprintf("ZipRecruiter (monitoring/cloudwatch; %s; security@ziprecruiter.com)", Version))
 
 	if config.Debug {
-		sess.Handlers.Send.PushFront(func(r *request.Request) {
-			log.Printf("Request: %s/%+v, Payload: %+v\n", r.ClientInfo.ServiceName, r.Operation, r.Params)
+		cfg.APIOptions = append(cfg.APIOptions, func(stack *middleware.Stack) error {
+			return stack.Initialize.Add(middleware.InitializeMiddlewareFunc("DebugLog", func(
+				ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler,
+			) (middleware.InitializeOutput, middleware.Metadata, error) {
+				log.Printf("Request: %s/%s, Payload: %+v\n", awsmiddleware.GetServiceID(ctx), awsmiddleware.GetOperationName(ctx), in.Parameters)
+				return next.HandleInitialize(ctx, in)
+			}), middleware.Before)
 		})
 	}
 
-	sess.Handlers.Send.SetBackNamed(request.NamedHandler{
-		Name: "Counters",
-		Fn: func(r *request.Request) {
-			service := r.ClientInfo.ServiceName
-			call := r.Operation.Name
-			duration := time.Now().Sub(r.AttemptTime).Seconds()
-			awsRequestSeconds.WithLabelValues(service, call).Observe(duration)
-		},
+	// Added after the retry middleware so that each attempt is observed, as
+	// with the per-attempt handlers in v1 of the SDK.
+	cfg.APIOptions = append(cfg.APIOptions, func(stack *middleware.Stack) error {
+		return stack.Finalize.Add(middleware.FinalizeMiddlewareFunc("Counters", func(
+			ctx context.Context, in middleware.FinalizeInput, next middleware.FinalizeHandler,
+		) (middleware.FinalizeOutput, middleware.Metadata, error) {
+			service := awsmiddleware.GetServiceID(ctx)
+			call := awsmiddleware.GetOperationName(ctx)
+			start := time.Now()
+
+			out, md, err := next.HandleFinalize(ctx, in)
+
+			awsRequestSeconds.WithLabelValues(service, call).Observe(time.Since(start).Seconds())
+			if err != nil {
+				awsErrorsTotal.WithLabelValues(service, call).Inc()
+			}
+
+			return out, md, err
+		}), middleware.After)
 	})
 
-	sess.Handlers.UnmarshalError.SetBackNamed(request.NamedHandler{
-		Name: "Counters",
-		Fn: func(r *request.Request) {
-			service := r.ClientInfo.ServiceName
-			call := r.Operation.Name
-			awsErrorsTotal.WithLabelValues(service, call).Inc()
-		},
-	})
-
-	return cloudwatch.New(sess), nil
+	return cloudwatch.NewFromConfig(cfg), nil
 }
