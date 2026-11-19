@@ -1,15 +1,18 @@
 package exportcloudwatch
 
 import (
+	"context"
 	"fmt"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/cloudwatch"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
@@ -21,7 +24,7 @@ func TestReadMetrics(t *testing.T) {
 	start := time.Now().Add(-2 * period).Truncate(period)
 	metricstats := newMetricstats()
 
-	err := ReadMetrics(scw, start, period, metricstats)
+	err := ReadMetrics(context.Background(), scw, start, period, metricstats)
 
 	assert.NoError(t, err)
 	for _, ms := range metricstats {
@@ -60,8 +63,8 @@ func TestUnrollMetrics(t *testing.T) {
 		in: []MetricStat{
 			{
 				statistic: "Sum",
-				cloudwatchMetric: &cloudwatch.Metric{
-					Dimensions: []*cloudwatch.Dimension{
+				cloudwatchMetric: &types.Metric{
+					Dimensions: []types.Dimension{
 						{
 							Name:  aws.String("QueueName"),
 							Value: aws.String("dev-nosensitive-contact-profile-live"),
@@ -78,8 +81,8 @@ func TestUnrollMetrics(t *testing.T) {
 		},
 		out: map[string]MetricStat{"i0": {
 			statistic: "Sum",
-			cloudwatchMetric: &cloudwatch.Metric{
-				Dimensions: []*cloudwatch.Dimension{
+			cloudwatchMetric: &types.Metric{
+				Dimensions: []types.Dimension{
 					{
 						Name:  aws.String("QueueName"),
 						Value: aws.String("dev-nosensitive-contact-profile-live"),
@@ -98,8 +101,8 @@ func TestUnrollMetrics(t *testing.T) {
 		in: []MetricStat{
 			{
 				statistic: "Maximum",
-				cloudwatchMetric: &cloudwatch.Metric{
-					Dimensions: []*cloudwatch.Dimension{
+				cloudwatchMetric: &types.Metric{
+					Dimensions: []types.Dimension{
 						{
 							Name:  aws.String("QueueName"),
 							Value: aws.String("dev-nosensitive-contact-profile-live"),
@@ -115,8 +118,8 @@ func TestUnrollMetrics(t *testing.T) {
 			},
 			{
 				statistic: "Sum",
-				cloudwatchMetric: &cloudwatch.Metric{
-					Dimensions: []*cloudwatch.Dimension{
+				cloudwatchMetric: &types.Metric{
+					Dimensions: []types.Dimension{
 						{
 							Name:  aws.String("QueueName"),
 							Value: aws.String("dev-nosensitive-contact-profile-live"),
@@ -134,8 +137,8 @@ func TestUnrollMetrics(t *testing.T) {
 		out: map[string]MetricStat{
 			"i0": {
 				statistic: "Maximum",
-				cloudwatchMetric: &cloudwatch.Metric{
-					Dimensions: []*cloudwatch.Dimension{
+				cloudwatchMetric: &types.Metric{
+					Dimensions: []types.Dimension{
 						{
 							Name:  aws.String("QueueName"),
 							Value: aws.String("dev-nosensitive-contact-profile-live"),
@@ -151,8 +154,8 @@ func TestUnrollMetrics(t *testing.T) {
 			},
 			"i1": {
 				statistic: "Sum",
-				cloudwatchMetric: &cloudwatch.Metric{
-					Dimensions: []*cloudwatch.Dimension{
+				cloudwatchMetric: &types.Metric{
+					Dimensions: []types.Dimension{
 						{
 							Name:  aws.String("QueueName"),
 							Value: aws.String("dev-nosensitive-contact-profile-live"),
@@ -210,7 +213,7 @@ func newMetricstats() map[string]MetricStat {
 
 type stubCloudWatch struct{}
 
-func (scw stubCloudWatch) GetMetricData(gmdi *cloudwatch.GetMetricDataInput) (*cloudwatch.GetMetricDataOutput, error) {
+func (scw stubCloudWatch) GetMetricData(_ context.Context, gmdi *cloudwatch.GetMetricDataInput, _ ...func(*cloudwatch.Options)) (*cloudwatch.GetMetricDataOutput, error) {
 	// handle in batches of 20 at a time to make sure implementation is properly
 	// using the NextToken
 	start := 0
@@ -220,19 +223,17 @@ func (scw stubCloudWatch) GetMetricData(gmdi *cloudwatch.GetMetricDataInput) (*c
 	end := start + 20
 
 	gmdo := cloudwatch.GetMetricDataOutput{
-		MetricDataResults: make([]*cloudwatch.MetricDataResult, 0, 20),
+		MetricDataResults: make([]types.MetricDataResult, 0, 20),
 	}
-
-	var one float64 = 1.0
 
 	for i := start; i < end && i < len(gmdi.MetricDataQueries); i++ {
 		mdq := gmdi.MetricDataQueries[i]
 		if strings.Contains(*mdq.MetricStat.Stat, "-skip") {
 			continue
 		}
-		gmdo.MetricDataResults = append(gmdo.MetricDataResults, &cloudwatch.MetricDataResult{
+		gmdo.MetricDataResults = append(gmdo.MetricDataResults, types.MetricDataResult{
 			Id:     mdq.Id,
-			Values: []*float64{&one},
+			Values: []float64{1.0},
 		})
 	}
 
@@ -242,6 +243,66 @@ func (scw stubCloudWatch) GetMetricData(gmdi *cloudwatch.GetMetricDataInput) (*c
 	}
 
 	return &gmdo, nil
+}
+
+// stubMetricLister returns pages of metrics, one page per call, chained by
+// NextToken
+type stubMetricLister struct {
+	pages [][]types.Metric
+}
+
+func (s stubMetricLister) ListMetrics(_ context.Context, lmi *cloudwatch.ListMetricsInput, _ ...func(*cloudwatch.Options)) (*cloudwatch.ListMetricsOutput, error) {
+	page := 0
+	if lmi.NextToken != nil {
+		page, _ = strconv.Atoi(*lmi.NextToken)
+	}
+
+	lmo := &cloudwatch.ListMetricsOutput{Metrics: s.pages[page]}
+	if page+1 < len(s.pages) {
+		lmo.NextToken = aws.String(strconv.Itoa(page + 1))
+	}
+
+	return lmo, nil
+}
+
+func sqsMetric(queueName string) types.Metric {
+	return types.Metric{
+		Namespace:  aws.String("AWS/SQS"),
+		MetricName: aws.String("ApproximateAgeOfOldestMessage"),
+		Dimensions: []types.Dimension{{Name: aws.String("QueueName"), Value: aws.String(queueName)}},
+	}
+}
+
+func TestMetricsToRead(t *testing.T) {
+	ec := ExportConfig{
+		Namespace:       "AWS/SQS",
+		Name:            "ApproximateAgeOfOldestMessage",
+		Dimensions:      []string{"QueueName"},
+		Statistics:      []string{"Maximum", "Sum"},
+		DimensionsMatch: map[string]*regexp.Regexp{"QueueName": regexp.MustCompile("prod")},
+		collectors: []*prometheus.GaugeVec{
+			prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "max"}, []string{"queue_name"}),
+			prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "sum"}, []string{"queue_name"}),
+		},
+	}
+	lister := stubMetricLister{pages: [][]types.Metric{
+		{sqsMetric("prod-a"), sqsMetric("dev-a")},
+		{sqsMetric("prod-b")},
+	}}
+
+	got, err := MetricsToRead(context.Background(), []ExportConfig{ec}, lister)
+
+	assert.NoError(t, err)
+	// 2 matching metrics (across both pages) x 2 statistics
+	assert.Len(t, got, 4)
+	seen := map[string]bool{}
+	for _, ms := range got {
+		seen[*ms.cloudwatchMetric.Dimensions[0].Value+"/"+ms.statistic] = true
+	}
+	assert.Equal(t, map[string]bool{
+		"prod-a/Maximum": true, "prod-a/Sum": true,
+		"prod-b/Maximum": true, "prod-b/Sum": true,
+	}, seen)
 }
 
 type mockGauge struct {

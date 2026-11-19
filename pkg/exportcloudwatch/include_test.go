@@ -4,8 +4,8 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/cloudwatch"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,7 +13,7 @@ type includeMetricTest struct {
 	name string
 
 	ExportConfig
-	cloudwatchMetric *cloudwatch.Metric
+	cloudwatchMetric *types.Metric
 
 	result bool
 }
@@ -27,8 +27,8 @@ func TestIncludeMetric(t *testing.T) {
 				Dimensions: []string{"QueueName"},
 				Statistics: []string{"Sum"},
 			},
-			cloudwatchMetric: &cloudwatch.Metric{
-				Dimensions: []*cloudwatch.Dimension{{
+			cloudwatchMetric: &types.Metric{
+				Dimensions: []types.Dimension{{
 					Name:  aws.String("Bonk"),
 					Value: aws.String("bar"),
 				}},
@@ -41,8 +41,8 @@ func TestIncludeMetric(t *testing.T) {
 				Dimensions: []string{"QueueName"},
 				Statistics: []string{"Sum"},
 			},
-			cloudwatchMetric: &cloudwatch.Metric{
-				Dimensions: []*cloudwatch.Dimension{{
+			cloudwatchMetric: &types.Metric{
+				Dimensions: []types.Dimension{{
 					Name:  aws.String("Bonk"),
 					Value: aws.String("bar"),
 				}, {
@@ -61,8 +61,8 @@ func TestIncludeMetric(t *testing.T) {
 					"QueueName": regexp.MustCompile("^foo"),
 				},
 			},
-			cloudwatchMetric: &cloudwatch.Metric{
-				Dimensions: []*cloudwatch.Dimension{{
+			cloudwatchMetric: &types.Metric{
+				Dimensions: []types.Dimension{{
 					Name:  aws.String("QueueName"),
 					Value: aws.String("bar"),
 				}},
@@ -78,8 +78,8 @@ func TestIncludeMetric(t *testing.T) {
 					"QueueName": regexp.MustCompile("^foo"),
 				},
 			},
-			cloudwatchMetric: &cloudwatch.Metric{
-				Dimensions: []*cloudwatch.Dimension{{
+			cloudwatchMetric: &types.Metric{
+				Dimensions: []types.Dimension{{
 					Name:  aws.String("QueueName"),
 					Value: aws.String("foo"),
 				}},
