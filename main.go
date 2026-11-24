@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -8,7 +9,7 @@ import (
 	"time"
 
 	"github.com/ZipRecruiter/cloudwatching/pkg/exportcloudwatch"
-	"github.com/aws/aws-sdk-go/service/cloudwatch"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -24,11 +25,11 @@ func init() {
 	prometheus.MustRegister(listMetricsSleep)
 }
 
-func handler(c configuration, cw *cloudwatch.CloudWatch, inner http.Handler) http.HandlerFunc {
+func handler(c configuration, cw *cloudwatch.Client, inner http.Handler) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		period := 60 * time.Second
 		start := time.Now().Add(-2 * period).Truncate(time.Minute)
-		if err := exportcloudwatch.ReadMetrics(cw, start, period, metrics); err != nil {
+		if err := exportcloudwatch.ReadMetrics(r.Context(), cw, start, period, metrics); err != nil {
 			rw.WriteHeader(500)
 			log.Print(err)
 			return
@@ -70,7 +71,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	cw, err := initDependencies(c)
+	ctx := context.Background()
+
+	cw, err := initDependencies(ctx, c)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -78,7 +81,7 @@ func main() {
 	var listMetricsDuration time.Duration
 
 	start := time.Now()
-	metrics, err = exportcloudwatch.MetricsToRead(c.exportConfigs, cw)
+	metrics, err = exportcloudwatch.MetricsToRead(ctx, c.exportConfigs, cw)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -92,7 +95,7 @@ func main() {
 			time.Sleep(duration)
 
 			start := time.Now()
-			metrics, err = exportcloudwatch.MetricsToRead(c.exportConfigs, cw)
+			metrics, err = exportcloudwatch.MetricsToRead(ctx, c.exportConfigs, cw)
 			if err != nil {
 				log.Fatal(err)
 			}
